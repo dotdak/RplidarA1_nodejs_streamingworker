@@ -1,0 +1,108 @@
+"use strict"; 
+class Point{
+        constructor(){
+                this._x = 0;
+                this._y = 0;
+                this._sweepX = 0;
+                this._sweepY = 0;
+        }
+        init(radius, theta){
+                this._sweepX = Math.round(400 * Math.cos(theta) + 391);
+                this._sweepY = Math.round(437 - 400 * Math.sin(theta))
+                this._x = Math.round(radius * Math.cos(theta) + 391);
+                this._y = Math.round(437 - radius * Math.sin(theta));
+        }
+
+
+        get x(){
+                return this._x;
+        }
+
+        get y(){
+                return this._y;
+        }
+
+        get sweepX(){
+                return this._sweepX;
+        }
+
+        get sweepY(){
+                return this._sweepY;
+        }
+}
+
+
+var http = require('http').createServer(handler);
+var fs = require('fs');
+var io = require('socket.io')(http);
+var exec = require('child_process').exec;
+//---------------------------------------------------v
+const ONE_DEGREE = 0.01745329251994329576923690768489;
+var point = new Point();
+var coor = [0,0,0,0];
+var theta = 0;
+//---------------------------------------------------^
+
+const path = require('path');
+const worker = require("streaming-worker");
+const addon_path = path.join(__dirname, "../addon/build/Release/simple_stream");
+const simple_stream = worker(addon_path);
+
+http.listen(8082); //, executeChromium);
+
+function handler(req, res) {
+        fs.readFile('./lidarUI.html', null, function(err,data) {
+                if(err) {
+                        res.writeHead(404, {'Content-Type': 'text/html'});
+                        res.write('File Not Found');
+                } else {
+                        res.writeHead(200, {'Content-Type': 'text/html'});
+                        res.write(data);
+                }
+                res.end();
+        });
+}
+
+/*simple_stream.from.on('data', function(value){
+        var parse = value.split(",");
+        console.log(parse[1]+' '+parse[2]);
+});*/
+const through = require('through');
+var output = simple_stream.from.stream();
+output
+   .pipe(
+        through(function (data) {
+            // the data coming in is an array, 
+           	// Element 0 is the name of the event emitted by the addon ("integer")
+           	// Element 1 is the data - which in this case is just the integer 
+           	this.queue(data[1]);
+        }))
+//   .pipe(process.stdout);
+io.sockets.on('connection', function(socket){
+        var value = 0;
+        socket.on('light', function(data) {
+                value = data;
+                console.log("connected: " + value);
+        });
+        socket.on('close', function(data){
+		value = data;
+                console.log("button connected: " + value);
+                theta = 0;
+        });
+
+        setInterval(function(){ // replace by Hung's function. Eg:
+                point.init(391, theta);
+                coor[0] = point.x;
+                coor[1] = point.y;
+                coor[2] = point.sweepX;
+                coor[3] = point.sweepY;
+                socket.emit("newPoint", coor);
+                //console.log(point.x + "  " + point.y);
+                theta = theta + Math.PI/900;
+                if(theta > Math.PI) theta -= Math.PI;
+        },10);
+});
+
+process.on('SIGINT', function(){
+        process.exit();
+});

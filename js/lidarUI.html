@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title> Obstacle Detector </title>
+</head>
+<body>
+<div>
+	<input type="button" value="Reload Page" onClick="window.location.reload()">
+ 	<button id="esc">Close</button>
+	<input id="light" type="checkbox">
+</div>
+	<script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/2.0.3/socket.io.js"></script> <!-- include socket.io client side script -->
+<div>	 
+	<canvas id="canvas" width="784" height="1000" style="border:1px solid #000000;"> </canvas> <!-- height = 437 -->
+</div>
+ <script>
+	var socket = io();
+
+	var x,y;
+	const NUM_MIN = 30;
+
+	var c = document.getElementById("canvas");
+	var context = c.getContext("2d");
+  	window.addEventListener("load", function() {
+		var btnClose = document.getElementById("esc");
+		btnClose.addEventListener("click",function(){
+			socket.emit("close", Number(1));
+		});	
+	});
+
+	socket.on("newPoint", function(data){
+		//if(data.length > NUM_MIN){
+		context.clearRect(0,0,canvas.width,canvas.height);
+		//}
+		for(let i = 0; i < data.length; i+=2){
+			context.fillRect(data[i], data[i+1], 2, 2);
+		}
+		console.log(data);
+	});
+	
+ </script>
+</body>
+<html>
